@@ -38,6 +38,8 @@
     var x = "#000000",
         y = 48;
 
+    var baseUrl = window.location.protocol + '//' + window.location.hostname;
+
     const texts = ['5', '5.', '5..', '5...', '4', '4.', '4..', '4...', '3', '3.', '3..', '3...', '2', '2.', '2..', '2...', '1', '1.', '1..', '1...'];
     var textStage = -1;
     var textElement;
@@ -173,7 +175,7 @@
         }
         let prediction;
         try {
-            result = await fetch('http://localhost:3000/api/predict', {
+            result = await fetch(baseUrl + '/api/predict', {
                 headers: {
                     'Content-Type': 'application/json'
                 },
