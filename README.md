@@ -1,5 +1,6 @@
 # tensorflowJS-express-mnist
 An example project for using tensorflowJS with a express web server and a HTML frontend.
+Draw a digit on the canvas and the AI shall recognize it.
 
 ![Screnshot](screenshot.png?raw=true)
 
