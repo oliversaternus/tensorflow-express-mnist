@@ -1,0 +1,251 @@
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+                    background-color: rgb(240, 233, 138);
+                    padding: 24px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-direction: column;
+                }
+
+                canvas {
+                    background-color: #ffffff;
+                    border: 2px solid #000000;
+                }
+
+                .text {
+                    width: 150px;
+                    padding-top: 24px;
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 20px;
+                    height: 23px;
+                    color: #000000;
+                }
+            </style>
+</head>
+<script type="text/javascript">
+    var canvas, ctx, flag = false,
+        prevX = 0,
+        currX = 0,
+        prevY = 0,
+        currY = 0,
+        dot_flag = false;
+
+    var x = "#000000",
+        y = 48;
+
+    const texts = ['5', '5.', '5..', '5...', '4', '4.', '4..', '4...', '3', '3.', '3..', '3...', '2', '2.', '2..', '2...', '1', '1.', '1..', '1...'];
+    var textStage = -1;
+    var textElement;
+
+    function init() {
+        canvas = document.getElementById('can');
+        textElement = document.getElementById("text");
+        ctx = canvas.getContext("2d");
+        w = canvas.width;
+        h = canvas.height;
+
+        canvas.addEventListener("mousemove", function (e) {
+            findxy('move', e)
+        }, false);
+        canvas.addEventListener("mousedown", function (e) {
+            findxy('down', e)
+        }, false);
+        canvas.addEventListener("mouseup", function (e) {
+            findxy('up', e)
+        }, false);
+        canvas.addEventListener("mouseout", function (e) {
+            findxy('out', e)
+        }, false);
+
+        setTimeout(loop, 200);
+
+    }
+
+    async function loop() {
+        textStage += 1;
+        textElement.innerText = textStage >= 20 ? " " : ("Prediction in " + texts[textStage]);
+        if (textStage === 21) {
+            textStage = -1;
+            const prediction = await process();
+            window.alert((!prediction && prediction !== 0) ? 'No Data' : prediction);
+            ctx.clearRect(0, 0, w, h);
+        }
+        setTimeout(loop, 200);
+    }
+
+    function draw() {
+        ctx.beginPath();
+        ctx.moveTo(prevX, prevY);
+        ctx.lineTo(currX, currY);
+        ctx.strokeStyle = x;
+        ctx.lineWidth = y;
+        ctx.stroke();
+        ctx.closePath();
+        ctx.beginPath();
+        ctx.arc(prevX, prevY, (y - 1) / 2, 0, 2 * Math.PI);
+        ctx.fillStyle = x;
+        ctx.fill();
+        ctx.closePath();
+        ctx.beginPath();
+        ctx.arc(currX, currY, (y - 1) / 2, 0, 2 * Math.PI);
+        ctx.fillStyle = x;
+        ctx.fill();
+        ctx.closePath();
+    }
+
+    function findxy(res, e) {
+        if (res == 'down') {
+            prevX = currX;
+            prevY = currY;
+            currX = e.clientX - canvas.offsetLeft;
+            currY = e.clientY - canvas.offsetTop;
+
+            flag = true;
+            dot_flag = true;
+            if (dot_flag) {
+                ctx.beginPath();
+                ctx.fillStyle = x;
+                ctx.fillRect(currX, currY, 2, 2);
+                ctx.closePath();
+                dot_flag = false;
+            }
+        }
+        if (res == 'up' || res == "out") {
+            flag = false;
+        }
+        if (res == 'move') {
+            if (flag) {
+                prevX = currX;
+                prevY = currY;
+                currX = e.clientX - canvas.offsetLeft;
+                currY = e.clientY - canvas.offsetTop;
+                draw();
+            }
+        }
+    }
+
+    async function process() {
+        var image = ctx.getImageData(0, 0, 420, 420);
+        const reshaped = [];
+        for (let i = 0; i < 420; i++) {
+            let temp = [];
+            for (let j = 0; j < 420; j++) {
+                temp.push(image.data[(i * 420 + j) * 4 + 3]);
+            }
+            reshaped.push(temp);
+        }
+        const scaled = [];
+        for (let i = 0; i < 28; i++) {
+            let temp = [];
+            for (let j = 0; j < 28; j++) {
+                let sum = 0;
+                for (let m = 0; m < 15; m++) {
+                    for (let n = 0; n < 15; n++) {
+                        sum += reshaped[15 * i + m][15 * j + n];
+                    }
+                }
+                temp.push(sum / 225);
+            }
+            scaled.push(temp);
+        }
+        const diff = calcMassCenterDiff(scaled);
+        if (!diff) {
+            return false;
+        }
+        const moved = [];
+        for (let i = 0; i < 28; i++) {
+            let temp = [];
+            for (let j = 0; j < 28; j++) {
+                const itemp = i + diff[0];
+                const jtemp = j + diff[1];
+                if (itemp < 0 || itemp > 27 || jtemp < 0 || jtemp > 27) {
+                    temp[j] = 0;
+                } else {
+                    temp[j] = scaled[itemp][jtemp];
+                }
+            }
+            moved.push(temp);
+        }
+        let prediction;
+        try {
+            result = await fetch('http://localhost:3000/api/predict', {
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                method: 'POST',
+                body: JSON.stringify(moved)
+            });
+            data = await result.json();
+            prediction = data.prediction;
+        } catch (e) {
+            console.log(e);
+            prediction = false;
+        }
+        console.log(prediction);
+        return prediction;
+    }
+
+    function calcMassCenterDiff(image) {
+        let m = 0;
+        let n = 0;
+        let minM = image.length - 1;
+        let maxM = 0;
+        let minN = image.length - 1;
+        let maxN = 0;
+        let all = 0;
+        for (let i = 0; i < image.length; i++) {
+            for (let j = 0; j < image[0].length; j++) {
+                m += image[i][j] * i;
+                n += image[i][j] * j;
+                all += image[i][j];
+                if (image[i][j] !== 0) {
+                    if (i < minM) {
+                        minM = i;
+                    }
+                    if (i > maxM) {
+                        maxM = i;
+                    }
+                    if (j < minN) {
+                        minN = j;
+                    }
+                    if (j > maxN) {
+                        maxN = j;
+                    }
+                }
+            }
+        }
+        if (maxM < minM || maxN < minN) {
+            return false;
+        }
+        let mDiff = Math.floor(m / all - image.length / 2);
+        let nDiff = Math.floor(n / all - image[0].length / 2);
+
+        if (maxM - mDiff > 27) {
+            mDiff = 27 - maxM;
+        }
+        if (maxN - nDiff > 27) {
+            nDiff = 27 - maxN;
+        }
+        if (minM - mDiff < 0) {
+            mDiff = 0 - minM;
+        }
+        if (minN - nDiff < 0) {
+            nDiff = 0 - minN;
+        }
+
+        return [mDiff, nDiff];
+    }
+
+</script>
+
+<body onload="init()">
+    <canvas id="can" width="420" height="420"></canvas>
+    <div class="text" id="text">Prediction in </div>
+</body>
+
+</html>
