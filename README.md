@@ -3,6 +3,9 @@ An example project for using tensorflowJS with a express web server and a HTML f
 
 ![Screnshot](screenshot.png?raw=true)
 
+## live demo
+Checkout a live demo of this project at https://tensorflow.blogscape.de
+
 ## getting started
 - install nodeJS and npm from official website https://nodejs.org/en/download/
 - clone project
