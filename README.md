@@ -5,7 +5,7 @@ Draw a digit on the canvas and the AI shall recognize it.
 ![Screnshot](screenshot.png?raw=true)
 
 ## live demo
-Checkout a live demo of this project at https://tensorflow.blogscape.de
+Checkout a live demo of this project at https://tensorflow.oliversaternus.de
 
 ## getting started
 - install nodeJS and npm from official website https://nodejs.org/en/download/
